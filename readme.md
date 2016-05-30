@@ -20,9 +20,12 @@ The terminology is use is roughly (and partly interchangeably):
 	+ so different grid searches over different parameter ranges would be different Sessions of the same Experiment
  * a *Task* or a *Job* is a single instance of code with the specific parameters that should be used for that code
 
-## Version 0.0
+[TOC]
+
+## Version 0.0 - Preprocessing Python and generating many files
 
 For my bachelor thesis I solved the problem in the following way: 
+
 
  * a "Project" folder contains a txt description, a 'main.py' file and a folder that contains the "Sessions"
 	+ each Session folder contains a 'jobs' folder for the meta information of the job, a 'job_code' folder and a text file 'parameters.txt'
@@ -40,8 +43,11 @@ For my bachelor thesis I solved the problem in the following way:
      - I provided an ncurses gui to create and run a session
      - with this gui, the progress and state of each job can be inspected
 
+
+
+
 An example:
-```
+```python
 job "E1.1. Evaluate Models for Trial Reshuffling" for cell in model_cells for model in range(len(models[0])):
         m = models[cell][sorted(models[cell].keys())[model]]
         with View(job_path + '_results.html') as view:
@@ -67,7 +73,7 @@ job "E1.2. Saving Data":
 
 Additionally, I had created some tools to document the progress of each job with a `View` and a job reporter class that could generate html with embedded matplotlib plots and a complex tree structure. As I like context managers, these objects can be used heavily as context managers:
 
-```
+```python
 # a view contains nodes that are organized by a path string eg. 'A Multiplication Table/table/10/10' will contain 100 in this example
 with ni.View('output_file.html') as v:
     with v.node('A Multiplication Table/table/') as table:
@@ -123,6 +129,9 @@ A lot of the code that is executed does not live in the experiment files but in 
 
 The V0.1 folder contains a [Tutorial](v0.1/readme.md) on how to run the code provided.
 
+<img src="https://raw.githubusercontent.com/jahuth/scheduling_and_aggregating_numerical_simulations/master/v0.1/demo_images/gui008.png" width="150" />
+
+
 ### Formats
 
 #### Experiments
@@ -147,7 +156,7 @@ As a python Object they also contain a Command object that holds whatever they a
 When the code of the Task wants to get the value of a specific parameter, this parameter will be looked up in this dictionary first, but if it is not found, the parent task is recursively asked. With this, global variables or variables that relate to a portion of the task tree are easy to implement and to change. There is no unnecessary redundancy.
 
 An example task looks like:
-```
+```python
 {
  'name': 'Task to add two numbers',
  'status': 'pending',
@@ -213,7 +222,8 @@ Parameter combinations can be easily generated and a subset of containers can be
 (this might be extended to django like querying of less than/greater than and evaluation of a supplied function)
 
 Example:
-```
+
+```python
 pdl = PDContainerList('a/path/somewhere',name_mode='int') # everything is contained in this folder and containers are named by their id (rather than a combination of parameters)
 pdl.generate(a=range(0,10),b=np.logspace(0,1,10))
 # (I am tempted to name this class Pudel)
@@ -233,7 +243,7 @@ print 'The filenames: ', [p.file('large array.npz') for p in pdl.find(a=2)]
 `litus.Lists` is a context manager for nested lists.
 That does not sound very exciting, but it makes it easier to save data into multidimensional arrays, eg. after collecting the results for all parameter combinations.
 
-```
+```python
 from litus import Lists
 l = Lists()
 with l:
