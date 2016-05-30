@@ -20,7 +20,6 @@ The terminology is use is roughly (and partly interchangeably):
 	+ so different grid searches over different parameter ranges would be different Sessions of the same Experiment
  * a *Task* or a *Job* is a single instance of code with the specific parameters that should be used for that code
 
-[TOC]
 
 ## Version 0.0 - Preprocessing Python and generating many files
 
