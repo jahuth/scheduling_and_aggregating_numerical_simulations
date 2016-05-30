@@ -29,6 +29,8 @@ The middle section is a file browser. Select the Example_Experiment.py file by c
 If the file is selected, the right side should now contain two Buttons. Each of them corresponds to a function exposed by the Experiment to create Sessions.
 When one of the buttons is clicked, a Dialog opens to let you change the default parameters. On closing this window, a new Session will be created and opened.
 
+The other two sections contain the recently used Sessions: on the left globally, on the right for the selected experiment.
+
 ![The main interface](https://raw.githubusercontent.com/jahuth/scheduling_and_aggregating_numerical_simulations/master/v0.1/demo_images/gui001.png "The main interface")
 ![The main interface](https://raw.githubusercontent.com/jahuth/scheduling_and_aggregating_numerical_simulations/master/v0.1/demo_images/gui002.png "The main interface")
 ![The main interface](https://raw.githubusercontent.com/jahuth/scheduling_and_aggregating_numerical_simulations/master/v0.1/demo_images/gui003.png "The main interface")
@@ -64,4 +66,20 @@ For this example there are two pieces of code that both load all the generated r
 
 ![The Results interface](https://raw.githubusercontent.com/jahuth/scheduling_and_aggregating_numerical_simulations/master/v0.1/demo_images/gui009.png "The Results interface")
 
+The code for each of the two actions is:
 
+```
+v = silver_session.root_task.get_data(['values_1','values_2'])
+for vv in v:
+    plot(vv[0],vv[1],'.')
+```
+
+and 
+
+```
+v = silver_session.root_task.get_data(['values_1','values_2'])
+plot([np.mean(vv[0]) for vv in v])
+plot([np.mean(vv[1]) for vv in v])
+```
+
+`get_data` fetches all the results from the respective Task Data Containers.
