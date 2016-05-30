@@ -1,6 +1,6 @@
 # Schedulig numerical experiments and collecting results
 
-In this repository I am collecting (failed) implementations for a general framework to run a numerical simulation with a set of parameters, such that after a simulation with each parameter configuration has been run, the results can be analyzed.
+In this repository I am collecting (mostly failed) implementations for a general framework to run a numerical simulation with a set of parameters, such that after a simulation with each parameter configuration has been run, the results can be analyzed.
 
 *Note: I am in the process of simplifying the code so I might remove everything that does not relate to task scheduling or result collections to make the code easier to understand.*
 
