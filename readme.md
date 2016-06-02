@@ -66,7 +66,7 @@ Bs = As.foreach(b_params).map(B)
 A_results_means = Bs.groupby(a_params).reduce(mean)
 A_results_std = Bs.groupby(a_params).reduce(std)
 # or anonymously
-description.foreach(a_params).map(A).foreach(b_params).map(B).groupby(a_params).split(reduce(mean),reduce(std))
+root.foreach(a_params).map(A).foreach(b_params).map(B).groupby(a_params).split(reduce(mean),reduce(std))
 
 # or in the list notation
 [foreach(a_params), [A, foreach(b_params), [B]], split, [reduce(std),reduce(mean)]]
@@ -77,6 +77,10 @@ Reductions can either be tied to the point where a datastreams end after a fork,
 
 A more flexible way (but maybe less elegant) would be to annotate the path of the computation along each fork and then filter on a flat table of values.
 Eg. a `groupby` call can not only reduce according to the forks made, but any variable that was used to annotate the computation path.
+
+It also remains to be determined if specifying a dependency tree is done via a "magic" or super object at the root or by collecting all the end nodes that are relevant to the user. If only the end nodes are collected and then the dependencies calculated from there, only calculations that are necessary will be computed. Still it might be more comfortable to add nodes onto a common root and execute all paths that leave from there.
+
+Also redundant computations might have to be removed in a separate step. Otherwise some expressions might become very complicated. But intermediate variables could also be a fix for that.
 
 #### Explicit Notation
 
@@ -103,6 +107,35 @@ In eg. `dask` notation this might look like this:
 This mapping of *node* to *dependency* can either be written into a json file or stored into a database if the number of dependencies get large.
 
 A similar format could also be used for storing the dependencies of how data was generated.
+
+Note that the actual dependencies of each result can now be collected exhaustively in terms of data and code: 
+```python
+>>> print_dependencies('a0_std')
+['a0',A,'b0','b1','b2','b3',lambda l: (std,(map, getter('some variable'), l))]
+}
+```
+
+Also the parameters of the fork can be propagated, however when reducing, some parameters have conflicting values:
+
+```python
+{
+  'a0': {'a_param': a0},
+  'a1': {'a_param': a1},
+  'a2': {'a_param': a2},
+  'a3': {'a_param': a3},
+  'b0': {'a_param': a0, 'b_apram': b0},
+  'b1': {'a_param': a0, 'b_apram': b1},
+  'b2': {'a_param': a0, 'b_apram': b2},
+  'b3': {'a_param': a0, 'b_apram': b3},
+  # more nodes for b4...b15
+  'a0_mean': {'a_param': a0, 'b_apram': b0, 'b_apram': b1, 'b_apram': b2, 'b_apram': b3},
+  'a0_std': {'a_param': a0, 'b_apram': b0, 'b_apram': b1, 'b_apram': b2, 'b_apram': b3},
+  # ...
+}
+```
+
+Depending on how the reductions are defined these can be removed (eg. when any values clash somewhere) or are just set randomly.
+
 
 ### Serializing python code and tracking dependencies
 
