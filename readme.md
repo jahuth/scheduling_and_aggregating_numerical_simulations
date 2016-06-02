@@ -11,7 +11,7 @@ The goals of each implementation were:
  * give some mechanism for running independent parts in parallel
 
 
-The terminology is use is roughly (and partly interchangeably):
+The terminology I use is roughly (and partly interchangeably):
 
  * *Parameters* are python variables that create different behaviour of the model. This can be model parameters itself, stimulus parameters or initial conditions.
 	+ usually these parameters are named and reside eg. in a dictionary or json file
@@ -19,7 +19,99 @@ The terminology is use is roughly (and partly interchangeably):
  * a *Session* is an Experiment together with a list of parameters with which the code is to be executed
 	+ so different grid searches over different parameter ranges would be different Sessions of the same Experiment
  * a *Task* or a *Job* is a single instance of code with the specific parameters that should be used for that code
+ * *Output* of a Task is sometimes defined as one single 'thing', but in most cases, a number of variables that recieve values during the execution of the task can be used by following Tasks as input. Also the output can be anything from single numerical values, to large binary files.
 
+## The Problems
+
+Solving even a portion of these subproblems will help to make the workflow better:
+
+ * packaging python code and sending to to eg. a worker in a cluster
+   - a) serializing python code
+   - b) caring about dependencies and their versions
+ * scheduling tasks automatically
+ * a format in which scheduling dependencies can be stored
+ * a format in which scheduling dependencies can be expressed with ease
+ * a format for datastorage that is fast to access, but can flexibly store small or large quantities of data (given that the code producing the data knows how big it is going to be and chooses accordingly)
+ * documenting the workflow, such that afterwards:
+   - some document can be generated in which it is apparent what happened when
+   - data can be inspected at a later date and it is unambigouus which code generated the data
+
+### Expressing a-cyclic graphs
+
+It might be necessary to have two representations of the graph: one abstract that generates another explicit graph that can then be stored.
+
+As example I assume there are functions `A` and `B` and sets of parameters for each.
+Now we want to run `A` with each possible parameter and then `B` on the output of `A` with each possible parameter for that.
+Then we want to aggregate results according to which `A` parameter was used in the first step.
+
+I use a `root` object that can eg. contain some description about the simulation that is run.
+
+If we think of the computation as pipelines, that can be defined as sets of nodes at each depth, we can eg. express the tasks like that:
+```python
+root.foreach(a_params).map(A).foreach(b_params).map(B).groupby(a_params).reduce(mean)
+```
+
+Or if we use lists to either mean sequential or concurrent execution, we can also define something like this:
+```python
+[foreach(a_params), [A, foreach(b_params), [B]], reduce(mean)]
+# with foreach being a special operator that spawns a new sub-pipeline for each element in the argument
+```
+
+If two computations should be done on the output, it could eg. be expressed like this:
+
+```python
+# explicitly naming nodes
+As = description.foreach(a_params).map(A)
+Bs = As.foreach(b_params).map(B)
+A_results_means = Bs.groupby(a_params).reduce(mean)
+A_results_std = Bs.groupby(a_params).reduce(std)
+# or anonymously
+description.foreach(a_params).map(A).foreach(b_params).map(B).groupby(a_params).split(reduce(mean),reduce(std))
+
+# or in the list notation
+[foreach(a_params), [A, foreach(b_params), [B]], split, [reduce(std),reduce(mean)]]
+# split being a special operator that duplicates the dataflow and feeds it to each element of the next list
+```
+
+Reductions can either be tied to the point where a datastreams end after a fork, but that can be hard to express. Similarly, they could be tied to the fork itself and then go along the computation until they recieve suitable input. The list notation uses the end of a forked pipeline as input to a reduction. However, this does not enable access to eg. an intermediate step in the pipeline. Also the order of forks is important for this process. If two lists of parameters are to be explored by forking the processing twice, the order in which the forks occur limits the reductions that can be expressed.
+
+A more flexible way (but maybe less elegant) would be to annotate the path of the computation along each fork and then filter on a flat table of values.
+Eg. a `groupby` call can not only reduce according to the forks made, but any variable that was used to annotate the computation path.
+
+#### Explicit Notation
+
+In any case these representations can only be used abstractly. As soon as we want to annotate which computations have been completed, we need another graph with explicit nodes.
+In eg. `dask` notation this might look like this:
+
+```python
+{
+ 'a0': (A, a0),
+ 'a1': (A, a1),
+ 'a2': (A, a2),
+ 'a3': (A, a3),
+ 'b0': (B, b0, 'a0'),
+ 'b1': (B, b1, 'a0'),
+ 'b2': (B, b2, 'a0'),
+ 'b3': (B, b3, 'a0'),
+  # more nodes for b4...b15
+ 'a0_mean': (mean, (map, getter('some variable'), ['b0','b1','b2','b3'])),
+ 'a0_std': (std, (map, getter('some variable'), ['b0','b1','b2','b3']))
+ # ...
+}
+```
+
+This mapping of *node* to *dependency* can either be written into a json file or stored into a database if the number of dependencies get large.
+
+A similar format could also be used for storing the dependencies of how data was generated.
+
+### Serializing python code and tracking dependencies
+
+One straight forward way is to store the python code in plain text.
+There are toolboxes that serialize the actual bytecode, but when this is stored, it is possible that other pyhton versions can not read the data anymore.
+
+There is a nice hack on github on how to import from a specific git commit in a git repository. That might be interesting:  [olivaq/python-git-import](https://github.com/olivaq/python-git-import)
+
+# Previous Attempts
 
 ## Version 0.0 - Preprocessing Python and generating many files
 
@@ -277,4 +369,7 @@ What is still using more time than I would like right now are the following:
 Distributing numerical tasks on one or many machines + a powerfull dependency solver.
 
 ### topographica / Holoviews.collector
-Possibly very specialized, but I have to have a closer look at it 
+Possibly very specialized, but I have to have a closer look at it.
+The use of [param](http://ioam.github.io/param/) is interesting.
+
+In the same way [Mozaik](https://github.com/antolikjan/mozaik) and [Lancet](http://ioam.github.io/lancet/)/[Lancet for python3](https://github.com/melver/lancet) could be the end of all problems. But also maybe not.
